@@ -17,3 +17,4 @@ frontend/dist/
 
 # Локальные настройки Claude Code
 .claude/
+.env
