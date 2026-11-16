@@ -15,6 +15,9 @@
 
 ### 1. Бэкенд (терминал 1)
 
+**Из PyCharm:** откройте [backend/run.py](backend/run.py) и нажмите Run (Shift+F10).
+Интерпретатор — `.venv` проекта, зависимости из `backend/requirements.txt` должны быть установлены.
+
 Windows (PowerShell):
 
 ```powershell
@@ -71,6 +74,7 @@ Vite проксирует запросы `/api/*` на бэкенд `http://127.
 | Проверка полей и расчёт суммы | [backend/app/offers.py](backend/app/offers.py) |
 | Сохранение и чтение документов (с проверкой владельца) | [backend/app/documents.py](backend/app/documents.py) |
 | Вход и сессии | [backend/app/auth.py](backend/app/auth.py) |
+| Запуск бэкенда кнопкой Run в PyCharm | [backend/run.py](backend/run.py) |
 | База SQLite: схема и учебные аккаунты | [backend/app/db.py](backend/app/db.py) |
 | Страница предложения: форма + редактор | [frontend/src/pages/OfferPage.jsx](frontend/src/pages/OfferPage.jsx) |
 | Редактор черновика | [frontend/src/components/DraftEditor.jsx](frontend/src/components/DraftEditor.jsx) |
