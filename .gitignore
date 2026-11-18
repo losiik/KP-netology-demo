@@ -17,4 +17,8 @@ frontend/dist/
 
 # Локальные настройки Claude Code
 .claude/
+
+# Секреты. Шаблон .env.example в репозиторий можно класть.
 .env
+.env.local
+.env.*.local
