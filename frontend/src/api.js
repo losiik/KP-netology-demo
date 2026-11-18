@@ -20,10 +20,11 @@ export function setToken(token) {
 }
 
 export class ApiError extends Error {
-  constructor(status, message, errors = {}) {
+  constructor(status, message, errors = {}, retry = false) {
     super(message);
     this.status = status;
     this.errors = errors;
+    this.retry = retry;
   }
 }
 
@@ -53,7 +54,7 @@ export async function api(path, { method = "GET", body } = {}) {
     const message =
       data.message || (typeof data.detail === "string" ? data.detail : "Ошибка сервера");
     if (response.status === 401 && path !== "/api/auth/login") onUnauthorized();
-    throw new ApiError(response.status, message, data.errors || {});
+    throw new ApiError(response.status, message, data.errors || {}, Boolean(data.retry));
   }
   return data;
 }

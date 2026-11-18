@@ -3,8 +3,9 @@
 Менеджер агентства вводит согласованные с клиентом данные, получает черновик КП,
 правит его, сохраняет в личную историю и копирует для отправки.
 
-На этом этапе **ИИ не подключён**: черновик собирается на сервере из обычного
-текстового шаблона. Всё работает локально, без внешних сервисов и API-ключей.
+Черновик готовит модель DeepSeek V4 Flash (`deepseek-flash`). Сервер проверяет
+поля, сам считает сумму и подставляет в текст услуги, цены, срок и условия.
+Ключ читается только из `AI_API_KEY` в локальном `.env`.
 
 - Бэкенд: Python 3.12, FastAPI, SQLite (встроенный `sqlite3`)
 - Фронтенд: React + Vite
@@ -70,7 +71,8 @@ Vite проксирует запросы `/api/*` на бэкенд `http://127.
 |-----|------|
 | **Форма** «Новое предложение» | [frontend/src/components/OfferForm.jsx](frontend/src/components/OfferForm.jsx) |
 | **Обработчик создания черновика** `POST /api/drafts` | [backend/app/drafts.py](backend/app/drafts.py) |
-| **Шаблон** — функция `build_template_draft` | [backend/app/template.py](backend/app/template.py) |
+| **Модель** — инструкция, данные заявки, вызов DeepSeek | [backend/app/model.py](backend/app/model.py) |
+| **Сборка текста** — `compose_draft` | [backend/app/template.py](backend/app/template.py) |
 | Проверка полей и расчёт суммы | [backend/app/offers.py](backend/app/offers.py) |
 | Сохранение и чтение документов (с проверкой владельца) | [backend/app/documents.py](backend/app/documents.py) |
 | Вход и сессии | [backend/app/auth.py](backend/app/auth.py) |
@@ -87,14 +89,14 @@ Vite проксирует запросы `/api/*` на бэкенд `http://127.
 OfferForm ──POST /api/drafts──▶ drafts.create_draft
                                   ├─ validate_offer_fields()   проверка полей и цен
                                   ├─ calculate_total()         сумма считается на сервере
-                                  └─ build_template_draft()    текст из шаблона
+                                  ├─ generate_wording()        формулировки DeepSeek
+                                  └─ compose_draft()           суммы и условия из заявки
                          ◀── { text, total, fields } ── в редактор (в базу НЕ пишется)
 
 «Сохранить» ──POST /api/documents (первый раз) / PUT /api/documents/{id} (повторно)
 ```
 
-Следующий этап — заменить `build_template_draft` на вызов модели.
-Форма, проверка полей и хранение документов при этом не меняются.
+Ключ: скопируйте `.env.example` в `.env` в корне проекта и впишите значение `AI_API_KEY`.
 
 ## API
 
@@ -103,7 +105,7 @@ OfferForm ──POST /api/drafts──▶ drafts.create_draft
 | POST | `/api/auth/login` | вход, возвращает токен |
 | POST | `/api/auth/logout` | выход |
 | GET  | `/api/auth/me` | текущий пользователь |
-| POST | `/api/drafts` | проверить поля, посчитать сумму, собрать текст по шаблону |
+| POST | `/api/drafts` | проверить поля, посчитать сумму, собрать черновик |
 | GET  | `/api/documents` | история текущего пользователя |
 | POST | `/api/documents` | сохранить новый документ |
 | GET  | `/api/documents/{id}` | открыть документ (чужой → 404) |
@@ -139,7 +141,6 @@ cd backend
 5. «Новое предложение» → очистить поле «Клиент» → «Создать черновик». Ошибка у поля, остальные данные на месте.
 6. Выйти, войти как `boris`, открыть ссылку на документ Анны (например `/documents/1`) → «Документ недоступен».
 
-## Что сознательно не входит в этот этап
+## Что сознательно не входит в проект
 
-Вызов модели, промпт, API-ключи и выбор провайдера — следующий этап.
-CRM, PDF, автоматическая отправка предложений и платежи — вне рамок проекта.
+CRM, PDF, автоматическая отправка предложений и платежи.

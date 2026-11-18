@@ -22,6 +22,7 @@ export default function OfferPage() {
   const [fields, setFields] = useState(() => (initialDoc ? toFormFields(initialDoc.fields) : emptyFields()));
   const [errors, setErrors] = useState({});
   const [formMessage, setFormMessage] = useState("");
+  const [canRetry, setCanRetry] = useState(false);
 
   // draftFields — поля, из которых собран текущий черновик (их и сохраняем как исходные).
   const [draftFields, setDraftFields] = useState(initialDoc?.fields ?? null);
@@ -82,6 +83,7 @@ export default function OfferPage() {
     setFields(toFormFields(SAMPLE_OFFER));
     setErrors({});
     setFormMessage("");
+    setCanRetry(false);
   }
 
   async function handleCreateDraft(event) {
@@ -92,6 +94,7 @@ export default function OfferPage() {
     }
     setBusy("draft");
     setFormMessage("");
+    setCanRetry(false);
     try {
       const result = await api("/api/drafts", { method: "POST", body: toApiFields(fields) });
       setErrors({});
@@ -103,6 +106,7 @@ export default function OfferPage() {
       // Введённые значения остаются в форме — меняем только ошибки.
       setErrors(err.errors || {});
       setFormMessage(err.message);
+      setCanRetry(Boolean(err.retry));
       requestAnimationFrame(() =>
         document.querySelector(".field-error")?.scrollIntoView({ block: "center", behavior: "smooth" }),
       );
@@ -162,6 +166,7 @@ export default function OfferPage() {
           errors={errors}
           message={formMessage}
           busy={busy === "draft"}
+          retry={canRetry}
           onChange={setFields}
           onSubmit={handleCreateDraft}
           onFillSample={handleFillSample}

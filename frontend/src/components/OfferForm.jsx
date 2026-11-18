@@ -3,7 +3,7 @@ import { emptyService } from "../offerFields.js";
 
 // Форма «Новое предложение». Проверку полей делает сервер (POST /api/drafts),
 // ошибки приходят в errors: { client: "...", "services.0.price": "...", ... }.
-export default function OfferForm({ fields, errors, message, busy, onChange, onSubmit, onFillSample }) {
+export default function OfferForm({ fields, errors, message, busy, retry, onChange, onSubmit, onFillSample }) {
   const set = (name) => (event) => onChange({ ...fields, [name]: event.target.value });
 
   const setService = (index, name) => (event) => {
@@ -116,7 +116,7 @@ export default function OfferForm({ fields, errors, message, busy, onChange, onS
       </Field>
 
       <button type="submit" className="btn btn-primary btn-wide" disabled={busy}>
-        {busy ? "Создаём черновик…" : "Создать черновик"}
+        {busy ? "Готовим черновик…" : retry ? "Повторить" : "Создать черновик"}
       </button>
     </form>
   );

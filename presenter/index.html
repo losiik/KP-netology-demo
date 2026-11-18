@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Слайды и текст</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --bg: #111418; --panel: #1a1e24; --line: #2a3039; --text: #e8eaed;
+    --muted: #8a929c; --accent: #4f8cff; --accent-text: #fff;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 1fr 1fr; height: 100vh; }
+  .left { position: relative; display: flex; align-items: center; justify-content: center;
+    background: #000; border-right: 1px solid var(--line); overflow: hidden; }
+  .left canvas { display: block; box-shadow: 0 0 0 1px #222; }
+  .drop { position: absolute; inset: 24px; border: 2px dashed var(--line); border-radius: 12px;
+    display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center;
+    color: var(--muted); text-align: center; padding: 16px; }
+  .drop.over { border-color: var(--accent); color: var(--text); }
+  .right { display: flex; flex-direction: column; min-width: 0; background: var(--panel); }
+  .bar { display: flex; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line);
+    flex-wrap: wrap; }
+  .bar .counter { font-variant-numeric: tabular-nums; font-weight: 600; margin-right: auto; font-size: 18px; }
+  button, .btn { background: #252b33; color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 10px; font: inherit; font-size: 14px; cursor: pointer; }
+  button:hover, .btn:hover { border-color: var(--muted); }
+  input[type=file] { display: none; }
+  .notes { flex: 1; overflow-y: auto; padding: 28px 32px; font-size: var(--fs, 28px); line-height: 1.45;
+    white-space: pre-wrap; word-wrap: break-word; }
+  .notes.empty { color: var(--muted); font-style: italic; }
+  textarea.notes { background: #0f1216; color: var(--text); border: 0; outline: 2px solid var(--accent);
+    outline-offset: -2px; resize: none; font-family: inherit; width: 100%; }
+  .next-strip { padding: 10px 32px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .controls { display: grid; grid-template-columns: 1fr 3fr; gap: 10px; padding: 12px 14px;
+    border-top: 1px solid var(--line); }
+  .controls button { padding: 16px; font-size: 20px; font-weight: 600; border-radius: 10px; }
+  #nextBtn { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .hint { color: var(--muted); font-size: 12px; padding: 0 14px 10px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="left" id="left">
+    <canvas id="canvas" hidden></canvas>
+    <div class="drop" id="drop">
+      <div style="font-size:20px">Перетащите сюда PDF</div>
+      <label class="btn">Выбрать PDF<input type="file" id="pdfInput" accept="application/pdf"></label>
+      <div style="font-size:13px">Можно сразу бросить PDF и .txt с текстами вместе</div>
+    </div>
+  </section>
+
+  <section class="right">
+    <div class="bar">
+      <span class="counter" id="counter">— / —</span>
+      <label class="btn" title="Тексты в .txt/.md, слайды разделены строкой ---">Загрузить текст<input type="file" id="notesInput" accept=".txt,.md,text/plain"></label>
+      <button id="editBtn" title="E">Редактировать</button>
+      <button id="exportBtn" title="Скачать тексты в .txt">Скачать .txt</button>
+      <button id="fsMinus" title="−">A−</button>
+      <button id="fsPlus" title="+">A+</button>
+      <button id="fullBtn" title="F">⛶</button>
+    </div>
+    <div class="notes empty" id="notes">Загрузите PDF слева и файл с текстом (или нажмите «Редактировать» и пишите прямо здесь).</div>
+    <div class="next-strip" id="nextStrip"></div>
+    <div class="controls">
+      <button id="prevBtn">←</button>
+      <button id="nextBtn">Далее →</button>
+    </div>
+    <div class="hint">Пробел / → / PageDown — дальше · ← / PageUp — назад · E — редактировать · F — полный экран</div>
+  </section>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const $ = id => document.getElementById(id);
+const canvas = $('canvas'), ctx = canvas.getContext('2d');
+let pdf = null, page = 1, total = 0, notes = [], docKey = 'default', editing = false, renderTask = null;
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+function parseNotes(text) {
+  return text.replace(/\r\n/g, '\n').split(/\n[ \t]*---+[ \t]*\n/).map(s => s.trim());
+}
+function saveNotes() { store.set('notes:' + docKey, JSON.stringify(notes)); }
+function loadSaved() {
+  try { notes = JSON.parse(store.get('notes:' + docKey)) || []; } catch { notes = []; }
+  page = Math.min(Math.max(1, +store.get('page:' + docKey) || 1), total || 1);
+}
+
+async function openPdf(file) {
+  const buf = await file.arrayBuffer();
+  pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  total = pdf.numPages;
+  docKey = file.name;
+  const pending = notes._pending; loadSaved();
+  if (pending) { notes = pending; saveNotes(); }
+  $('drop').hidden = true; canvas.hidden = false;
+  show();
+}
+
+async function openNotes(file) {
+  const parsed = parseNotes(await file.text());
+  if (pdf) { notes = parsed; saveNotes(); show(); }
+  else { notes = parsed; notes._pending = parsed; showNotes(); }
+}
+
+async function renderPage() {
+  if (!pdf) return;
+  const p = await pdf.getPage(page);
+  const box = $('left').getBoundingClientRect();
+  const base = p.getViewport({ scale: 1 });
+  const scale = Math.min((box.width - 16) / base.width, (box.height - 16) / base.height);
+  const dpr = window.devicePixelRatio || 1;
+  const vp = p.getViewport({ scale: scale * dpr });
+  if (renderTask) renderTask.cancel();
+  const off = document.createElement('canvas');
+  off.width = vp.width; off.height = vp.height;
+  renderTask = p.render({ canvasContext: off.getContext('2d'), viewport: vp });
+  try { await renderTask.promise; } catch { return; }
+  canvas.width = vp.width; canvas.height = vp.height;
+  canvas.style.width = vp.width / dpr + 'px'; canvas.style.height = vp.height / dpr + 'px';
+  ctx.drawImage(off, 0, 0);
+}
+
+function showNotes() {
+  const el = $('notes');
+  const t = notes[page - 1] || '';
+  if (editing) { el.value = t; return; }
+  el.textContent = t || (pdf ? 'Нет текста для этого слайда' : el.textContent);
+  el.classList.toggle('empty', !t);
+  el.scrollTop = 0;
+  const nxt = notes[page] || '';
+  $('nextStrip').textContent = page < total ? 'Дальше: ' + (nxt.split('\n')[0] || '—') : (total ? 'Последний слайд' : '');
+}
+
+function show() {
+  $('counter').textContent = total ? `${page} / ${total}` : '— / —';
+  store.set('page:' + docKey, page);
+  renderPage(); showNotes();
+}
+
+function go(d) {
+  if (!pdf) return;
+  const n = Math.min(Math.max(1, page + d), total);
+  if (n === page) return;
+  if (editing) commitEdit();
+  page = n; show();
+}
+
+function commitEdit() {
+  notes[page - 1] = $('notes').value; saveNotes();
+}
+function toggleEdit() {
+  const old = $('notes');
+  if (editing) commitEdit();
+  editing = !editing;
+  const el = document.createElement(editing ? 'textarea' : 'div');
+  el.id = 'notes'; el.className = 'notes';
+  old.replaceWith(el);
+  $('editBtn').textContent = editing ? 'Готово' : 'Редактировать';
+  if (editing) { el.addEventListener('input', commitEdit); showNotes(); el.focus(); }
+  else showNotes();
+}
+
+function exportNotes() {
+  const text = Array.from({ length: Math.max(total, notes.length) }, (_, i) => notes[i] || '').join('\n\n---\n\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+  a.download = docKey.replace(/\.pdf$/i, '') + '-notes.txt';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+let fs = +store.get('fs') || 28;
+function setFs(v) { fs = Math.min(64, Math.max(14, v)); document.documentElement.style.setProperty('--fs', fs + 'px'); store.set('fs', fs); }
+setFs(fs);
+
+function handleFiles(files) {
+  const list = [...files];
+  const notesFile = list.find(f => !/pdf$/i.test(f.type) && !/\.pdf$/i.test(f.name));
+  const pdfFile = list.find(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name));
+  (async () => {
+    if (notesFile && !pdfFile) return openNotes(notesFile);
+    if (notesFile) { notes = parseNotes(await notesFile.text()); notes._pending = notes; }
+    if (pdfFile) await openPdf(pdfFile);
+  })().catch(e => alert('Не получилось открыть файл: ' + e.message));
+}
+
+$('pdfInput').onchange = e => handleFiles(e.target.files);
+$('notesInput').onchange = e => handleFiles(e.target.files);
+$('nextBtn').onclick = () => go(1);
+$('prevBtn').onclick = () => go(-1);
+$('editBtn').onclick = toggleEdit;
+$('exportBtn').onclick = exportNotes;
+$('fsPlus').onclick = () => setFs(fs + 2);
+$('fsMinus').onclick = () => setFs(fs - 2);
+$('fullBtn').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+$('left').onclick = () => go(1);
+
+['dragover', 'dragenter'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); $('drop').classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); $('drop').classList.remove('over'); }));
+document.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+
+document.addEventListener('keydown', e => {
+  if (editing && e.target.tagName === 'TEXTAREA') {
+    if (e.key === 'Escape') toggleEdit();
+    return;
+  }
+  if ([' ', 'ArrowRight', 'ArrowDown', 'PageDown', 'Enter'].includes(e.key)) { e.preventDefault(); go(1); }
+  else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); go(-1); }
+  else if (e.key === 'Home') { go(-total); }
+  else if (e.key === 'End') { go(total); }
+  else if (e.key === 'e' || e.key === 'у') toggleEdit();
+  else if (e.key === 'f' || e.key === 'а') $('fullBtn').click();
+  else if (e.key === '+' || e.key === '=') setFs(fs + 2);
+  else if (e.key === '-') setFs(fs - 2);
+});
+
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(renderPage, 120); });
+</script>
+</body>
+</html>

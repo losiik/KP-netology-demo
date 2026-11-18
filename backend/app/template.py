@@ -1,29 +1,13 @@
-"""Формирование текста КП из обычного текстового шаблона.
+"""Сборка текста КП на сервере.
 
-Это единственное место, где собирается текст черновика.
-На следующем этапе сюда можно будет подключить модель — форма,
-проверка полей и хранение документов от этого не зависят.
+Формулировки задачи и обращения приходят от модели.
+Перечень работ, цены, срок, итоговая сумма и условия берутся
+только из проверенных полей заявки.
 """
 
 from decimal import Decimal
 
 from .offers import OfferFields
-
-DRAFT_TEMPLATE = """\
-Коммерческое предложение для {client}
-
-Задача
-{task}
-
-Работы
-{services}
-
-Стоимость
-Итого {total}.
-
-Срок
-{deadline}{terms_section}
-"""
 
 TERMS_SECTION = """
 
@@ -53,21 +37,32 @@ CLIENT_TYPE_GENITIVE = {
 }
 
 
-def build_template_draft(fields: OfferFields, total: Decimal) -> str:
-    """Собирает текст черновика из проверенных полей формы и итоговой суммы."""
-    text = DRAFT_TEMPLATE.format(
-        client=client_for_title(fields.client),
-        task=as_sentence(fields.task),
-        services="\n".join(
-            SERVICE_LINE.format(name=s.name, price=format_rub(s.price)) for s in fields.services
-        ),
-        total=format_rub(total),
-        deadline=as_sentence(fields.deadline),
-        terms_section=TERMS_SECTION.format(terms=as_sentence(fields.extra_terms))
-        if fields.extra_terms
-        else "",
+def compose_draft(fields: OfferFields, total: Decimal, wording: dict) -> str:
+    """Собирает черновик: формулировки из wording, факты и суммы из заявки."""
+    opening = _optional_sentence(wording.get("opening"))
+    task = as_sentence(str(wording.get("task") or ""))
+    services = "\n".join(
+        SERVICE_LINE.format(name=service.name, price=format_rub(service.price)) for service in fields.services
+    )
+    terms_section = (
+        TERMS_SECTION.format(terms=as_sentence(fields.extra_terms)) if fields.extra_terms else ""
+    )
+    head = f"Коммерческое предложение для {client_for_title(fields.client)}\n"
+    if opening:
+        head += f"\n{opening}\n"
+    text = (
+        f"{head}\n"
+        f"Задача\n{task}\n\n"
+        f"Работы\n{services}\n\n"
+        f"Стоимость\nИтого {format_rub(total)}.\n\n"
+        f"Срок\n{as_sentence(fields.deadline)}{terms_section}"
     )
     return text.strip()
+
+
+def build_template_draft(fields: OfferFields, total: Decimal) -> str:
+    """Черновик без модели: формулировка задачи совпадает с текстом заявки."""
+    return compose_draft(fields, total, {"opening": "", "task": fields.task})
 
 
 def client_for_title(client: str) -> str:
@@ -79,6 +74,12 @@ def client_for_title(client: str) -> str:
 def as_sentence(value: str) -> str:
     value = value.strip()
     return value if value.endswith((".", "!", "?", "…")) else value + "."
+
+
+def _optional_sentence(value) -> str:
+    if not isinstance(value, str) or not value.strip():
+        return ""
+    return as_sentence(value)
 
 
 def format_rub(amount: Decimal) -> str:
