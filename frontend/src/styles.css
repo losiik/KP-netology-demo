@@ -1,12 +1,14 @@
 :root {
-  --bg: #f3f5f9;
+  --bg: #f2f4f7;
   --surface: #ffffff;
-  --text: #1b2333;
-  --muted: #5b6577;
-  --border: #d5dbe5;
-  --primary: #2f5bea;
-  --primary-dark: #2148c4;
-  --primary-soft: #e8eeff;
+  --text: #15191f;
+  --muted: #5d6673;
+  --border: #d7dce3;
+  --primary: #1fae8f;
+  --primary-dark: #14876e;
+  --primary-soft: #e2f6f0;
+  --ai: #6b4de6;
+  --ai-soft: #efeaff;
   --danger: #c62828;
   --danger-soft: #fdecec;
   --success: #1e7a46;
@@ -38,16 +40,20 @@ h2 { font-size: 26px; }
   top: 0;
   z-index: 10;
 }
-.brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 20px; }
-.brand-mark {
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--primary);
-  color: #fff;
-  font-size: 16px;
+.brand {
+  font-weight: 700;
+  font-size: 22px;
+  padding-left: 14px;
+  border-left: 5px solid var(--primary);
+  line-height: 1.1;
+}
+.stage-chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
 }
 .nav { display: flex; gap: 8px; }
 .nav a {
@@ -213,7 +219,9 @@ input.price { text-align: right; font-variant-numeric: tabular-nums; }
   padding: 18px 20px;
   margin-top: 6px;
 }
-.editor-actions { display: flex; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+.editor-actions { display: flex; align-items: center; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+.editor-hint { color: var(--muted); font-size: 16px; margin-left: auto; }
+.editor-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .save-status { font-size: 16px; font-weight: 600; padding: 6px 12px; border-radius: 999px; }
 .save-status.is-dirty { background: var(--warning-soft); color: var(--warning); }
 .save-status.is-saved { background: var(--success-soft); color: var(--success); }
@@ -222,24 +230,39 @@ input.price { text-align: right; font-variant-numeric: tabular-nums; }
 }
 
 /* ── История ───────────────────────────────────────── */
-.history { max-width: 1000px; margin: 0 auto; }
-.history-list { list-style: none; margin: 0; padding: 0; }
-.history-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px 200px;
-  gap: 16px;
-  padding: 16px 18px;
-  border-top: 1px solid var(--border);
-  color: inherit;
-  text-decoration: none;
+.history { max-width: 1100px; margin: 0 auto; }
+.history-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
-a.history-row:hover { background: var(--primary-soft); }
-.history-header { color: var(--muted); font-size: 15px; font-weight: 600; border-top: 0; }
-.history-client { font-weight: 700; font-size: 20px; color: var(--primary-dark); }
-.history-total { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
-.history-date { color: var(--muted); text-align: right; }
-.history-header span:nth-child(n + 2) { text-align: right; }
+.history-table th, .history-table td { padding: 16px 20px; text-align: left; vertical-align: middle; }
+.history-table th { font-size: 18px; background: #f7f9fb; border-bottom: 1px solid var(--border); }
+.history-table td { border-top: 1px solid var(--border); }
+.history-table tbody tr:first-child td { border-top: 0; }
+.history-table tbody tr:hover { background: #fafcfd; }
+.history-client { font-weight: 700; font-size: 20px; }
+.history-date { color: var(--muted); white-space: nowrap; }
+.history-open { color: var(--primary-dark); font-weight: 700; font-size: 19px; text-underline-offset: 4px; }
+.history-note { margin: 18px 0 0; }
 .empty { color: var(--muted); font-size: 19px; }
+
+/* ── Источник черновика ────────────────────────────── */
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.source-template { background: #eceff3; color: var(--muted); }
+.source-ai { background: var(--ai-soft); color: var(--ai); }
 
 /* ── Вход ──────────────────────────────────────────── */
 .login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
@@ -255,7 +278,6 @@ a.history-row:hover { background: var(--primary-soft); }
   .content { padding: 16px 16px 48px; }
   .card { padding: 18px; }
   .services-head, .service-row { grid-template-columns: minmax(0, 1fr) 120px 48px; }
-  .history-row { grid-template-columns: 1fr; gap: 4px; }
-  .history-total, .history-date { text-align: left; }
-  .history-header { display: none; }
+  .history-table th, .history-table td { padding: 12px; }
+  .history-table th:nth-child(2), .history-table td:nth-child(2) { display: none; }
 }

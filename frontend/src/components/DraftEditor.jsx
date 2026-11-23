@@ -1,7 +1,19 @@
 import { formatDate } from "../money.js";
+import SourceBadge from "./SourceBadge.jsx";
 
 // Редактор черновика: текст правится вручную, «Сохранить» пишет текущую редакцию.
-export default function DraftEditor({ text, onChange, onSave, onCopy, busy, dirty, savedAt, message }) {
+export default function DraftEditor({
+  client,
+  text,
+  source,
+  onChange,
+  onSave,
+  onCopy,
+  busy,
+  dirty,
+  savedAt,
+  message,
+}) {
   if (text === null) {
     return (
       <section className="card editor editor-empty">
@@ -17,12 +29,8 @@ export default function DraftEditor({ text, onChange, onSave, onCopy, busy, dirt
   return (
     <section className="card editor">
       <div className="card-head">
-        <h2>Черновик</h2>
-        <span className={`save-status ${dirty ? "is-dirty" : "is-saved"}`}>
-          {dirty
-            ? "Есть несохранённые изменения"
-            : `Сохранено ${savedAt ? formatDate(savedAt) : ""}`}
-        </span>
+        <h2>Черновик{client ? ` · ${client}` : ""}</h2>
+        <SourceBadge source={source} />
       </div>
 
       {message && (
@@ -31,9 +39,14 @@ export default function DraftEditor({ text, onChange, onSave, onCopy, busy, dirt
         </div>
       )}
 
-      <label className="label" htmlFor="draft-text">
-        Текст предложения
-      </label>
+      <div className="editor-label-row">
+        <label className="label" htmlFor="draft-text">
+          Текст предложения
+        </label>
+        <span className={`save-status ${dirty ? "is-dirty" : "is-saved"}`}>
+          {dirty ? "Есть несохранённые изменения" : `Сохранено ${savedAt ? formatDate(savedAt) : ""}`}
+        </span>
+      </div>
       <textarea
         id="draft-text"
         className="draft-text"
@@ -47,8 +60,9 @@ export default function DraftEditor({ text, onChange, onSave, onCopy, busy, dirt
           {busy ? "Сохраняем…" : "Сохранить"}
         </button>
         <button type="button" className="btn btn-secondary" onClick={onCopy} disabled={!text}>
-          Скопировать текст
+          Скопировать
         </button>
+        <span className="editor-hint">Проверьте текст перед отправкой</span>
       </div>
     </section>
   );

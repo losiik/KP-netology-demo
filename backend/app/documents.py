@@ -18,6 +18,9 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 MAX_TEXT_LENGTH = 50_000
 NOT_FOUND = "Документ не найден или у вас нет к нему доступа"
 
+# Кто подготовил черновик. Сейчас только шаблон; "ai" появится после подключения модели.
+DRAFT_SOURCES = ("template", "ai")
+
 
 def _document_out(row) -> dict:
     return {
@@ -31,6 +34,7 @@ def _document_out(row) -> dict:
         },
         "total": row["total"],
         "text": row["text"],
+        "source": row["source"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -58,11 +62,16 @@ def _parse_body(payload: dict):
     return fields, text, {}
 
 
+def _source(payload: dict) -> str:
+    source = payload.get("source")
+    return source if source in DRAFT_SOURCES else "template"
+
+
 @router.get("")
 def list_documents(user: dict = Depends(current_user)):
     with connect() as conn:
         rows = conn.execute(
-            "SELECT id, client, total, updated_at FROM documents "
+            "SELECT id, client, total, source, updated_at FROM documents "
             "WHERE owner_id = ? ORDER BY updated_at DESC, id DESC",
             (user["id"],),
         ).fetchall()
@@ -84,8 +93,8 @@ def create_document(payload: dict = Body(...), user: dict = Depends(current_user
     with connect() as conn:
         cursor = conn.execute(
             "INSERT INTO documents (owner_id, client, task, services_json, deadline, "
-            "extra_terms, total, text, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "extra_terms, total, text, source, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 user["id"],
                 fields.client,
@@ -95,6 +104,7 @@ def create_document(payload: dict = Body(...), user: dict = Depends(current_user
                 fields.extra_terms,
                 str(calculate_total(fields.services)),
                 text,
+                _source(payload),
                 stamp,
                 stamp,
             ),
@@ -111,7 +121,7 @@ def update_document(doc_id: int, payload: dict = Body(...), user: dict = Depends
             return validation_error(errors)
         conn.execute(
             "UPDATE documents SET client = ?, task = ?, services_json = ?, deadline = ?, "
-            "extra_terms = ?, total = ?, text = ?, updated_at = ? "
+            "extra_terms = ?, total = ?, text = ?, source = ?, updated_at = ? "
             "WHERE id = ? AND owner_id = ?",
             (
                 fields.client,
@@ -121,6 +131,7 @@ def update_document(doc_id: int, payload: dict = Body(...), user: dict = Depends
                 fields.extra_terms,
                 str(calculate_total(fields.services)),
                 text,
+                _source(payload),
                 now_iso(),
                 doc_id,
                 user["id"],

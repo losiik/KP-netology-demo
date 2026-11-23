@@ -3,7 +3,7 @@ import { emptyService } from "../offerFields.js";
 
 // Форма «Новое предложение». Проверку полей делает сервер (POST /api/drafts),
 // ошибки приходят в errors: { client: "...", "services.0.price": "...", ... }.
-export default function OfferForm({ fields, errors, message, busy, onChange, onSubmit, onFillSample }) {
+export default function OfferForm({ fields, errors, message, onChange, onSubmit, onFillSample }) {
   const set = (name) => (event) => onChange({ ...fields, [name]: event.target.value });
 
   const setService = (index, name) => (event) => {
@@ -115,8 +115,10 @@ export default function OfferForm({ fields, errors, message, busy, onChange, onS
         <input id="extra_terms" value={fields.extra_terms} onChange={set("extra_terms")} />
       </Field>
 
-      <button type="submit" className="btn btn-primary btn-wide" disabled={busy}>
-        {busy ? "Создаём черновик…" : "Создать черновик"}
+      {/* Шаблон отвечает мгновенно, поэтому состояния загрузки пока нет.
+          Блокировку кнопки на время генерации добавим вместе с ИИ. */}
+      <button type="submit" className="btn btn-primary btn-wide">
+        Создать черновик
       </button>
     </form>
   );

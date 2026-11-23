@@ -54,6 +54,16 @@ def test_sample_draft(client):
     assert response.status_code == 200
     assert response.json()["total"] == "80000"
     assert response.json()["text"] == EXPECTED_TEXT
+    assert response.json()["source"] == "template"
+
+
+def test_template_function_directly():
+    from app.offers import calculate_total, validate_offer_fields
+    from app.template import build_template_draft
+
+    fields, errors = validate_offer_fields(SAMPLE)
+    assert errors == {}
+    assert build_template_draft(fields, calculate_total(fields.services)) == EXPECTED_TEXT
 
 
 def test_total_comes_from_form(client):
@@ -115,3 +125,13 @@ def test_save_edit_reopen_and_owner_check(client):
     assert client.put(f"/api/documents/{doc_id}", json={"fields": SAMPLE, "text": "x"}, headers=boris).status_code == 404
     assert client.get("/api/documents", headers=boris).json()["documents"] == []
     assert client.get(f"/api/documents/{doc_id}", headers=anna).json()["text"] == "Правка вручную"
+
+
+def test_document_keeps_draft_source(client):
+    anna = login(client, "anna", "anna123")
+    by_template = client.post("/api/documents", json={"fields": SAMPLE, "text": "a"}, headers=anna).json()
+    by_ai = client.post("/api/documents", json={"fields": SAMPLE, "text": "b", "source": "ai"}, headers=anna).json()
+    unknown = client.post("/api/documents", json={"fields": SAMPLE, "text": "c", "source": "hack"}, headers=anna).json()
+    assert (by_template["source"], by_ai["source"], unknown["source"]) == ("template", "ai", "template")
+    listed = {d["id"]: d["source"] for d in client.get("/api/documents", headers=anna).json()["documents"]}
+    assert listed[by_ai["id"]] == "ai"

@@ -36,10 +36,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <form className="card login-card" onSubmit={handleSubmit}>
-        <div className="brand brand-large">
-          <span className="brand-mark">КП</span>
-          <span>Коммерческие предложения</span>
-        </div>
+        <div className="brand brand-large">Предложения</div>
         <h1>Вход</h1>
 
         {error && (

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { api } from "../api.js";
-import { formatDate, formatRub } from "../money.js";
+import SourceBadge from "../components/SourceBadge.jsx";
+import { formatRelativeDate } from "../money.js";
 
+// «Мои предложения» — документы текущего пользователя. Чужие сервер не отдаёт.
 export default function HistoryPage() {
   const [documents, setDocuments] = useState(null);
   const [error, setError] = useState("");
@@ -16,9 +18,9 @@ export default function HistoryPage() {
   return (
     <section className="card history">
       <div className="card-head">
-        <h2>История предложений</h2>
+        <h2>Мои предложения</h2>
         <Link className="btn btn-primary" to="/new">
-          + Новое предложение
+          Новое предложение
         </Link>
       </div>
 
@@ -30,23 +32,34 @@ export default function HistoryPage() {
       )}
 
       {documents?.length > 0 && (
-        <ul className="history-list">
-          <li className="history-row history-header" aria-hidden="true">
-            <span>Клиент</span>
-            <span>Сумма</span>
-            <span>Обновлено</span>
-          </li>
-          {documents.map((doc) => (
-            <li key={doc.id}>
-              <Link className="history-row" to={`/documents/${doc.id}`}>
-                <span className="history-client">{doc.client}</span>
-                <span className="history-total">{formatRub(doc.total)}</span>
-                <span className="history-date">{formatDate(doc.updated_at)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <table className="history-table">
+          <thead>
+            <tr>
+              <th>Клиент</th>
+              <th>Как создан</th>
+              <th>Обновлено</th>
+              <th>Действие</th>
+            </tr>
+          </thead>
+          <tbody>
+            {documents.map((doc) => (
+              <tr key={doc.id}>
+                <td className="history-client">{doc.client}</td>
+                <td>
+                  <SourceBadge source={doc.source} />
+                </td>
+                <td className="history-date">{formatRelativeDate(doc.updated_at)}</td>
+                <td>
+                  <Link className="history-open" to={`/documents/${doc.id}`}>
+                    Открыть
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
+      <p className="hint history-note">Сохранённые документы доступны после повторного входа</p>
     </section>
   );
 }

@@ -27,6 +27,8 @@ export default function OfferPage() {
   const [draftFields, setDraftFields] = useState(initialDoc?.fields ?? null);
   const [text, setText] = useState(initialDoc?.text ?? null);
   const [generatedText, setGeneratedText] = useState(null);
+  // Кто подготовил текущий черновик: "template" сейчас, "ai" — после подключения модели.
+  const [source, setSource] = useState(initialDoc?.source ?? "template");
   const [saved, setSaved] = useState(() => (initialDoc ? savedSnapshot(initialDoc) : null));
   const [docId, setDocId] = useState(initialDoc?.id ?? null);
 
@@ -40,6 +42,7 @@ export default function OfferPage() {
     setFields(toFormFields(doc.fields));
     setDraftFields(doc.fields);
     setText(doc.text);
+    setSource(doc.source ?? "template");
     setGeneratedText(null);
     setSaved(savedSnapshot(doc));
     setDocId(doc.id);
@@ -90,7 +93,6 @@ export default function OfferPage() {
     if (editedByHand && !window.confirm("Текст в редакторе будет заменён новым черновиком. Продолжить?")) {
       return;
     }
-    setBusy("draft");
     setFormMessage("");
     try {
       const result = await api("/api/drafts", { method: "POST", body: toApiFields(fields) });
@@ -98,6 +100,7 @@ export default function OfferPage() {
       setDraftFields(result.fields);
       setText(result.text);
       setGeneratedText(result.text);
+      setSource(result.source ?? "template");
       setEditorMessage("");
     } catch (err) {
       // Введённые значения остаются в форме — меняем только ошибки.
@@ -106,8 +109,6 @@ export default function OfferPage() {
       requestAnimationFrame(() =>
         document.querySelector(".field-error")?.scrollIntoView({ block: "center", behavior: "smooth" }),
       );
-    } finally {
-      setBusy(null);
     }
   }
 
@@ -115,7 +116,7 @@ export default function OfferPage() {
     setBusy("save");
     setEditorMessage("");
     try {
-      const body = { fields: draftFields, text };
+      const body = { fields: draftFields, text, source };
       if (docId) {
         const doc = await api(`/api/documents/${docId}`, { method: "PUT", body });
         setSaved(savedSnapshot(doc));
@@ -161,13 +162,14 @@ export default function OfferPage() {
           fields={fields}
           errors={errors}
           message={formMessage}
-          busy={busy === "draft"}
           onChange={setFields}
           onSubmit={handleCreateDraft}
           onFillSample={handleFillSample}
         />
         <DraftEditor
+          client={draftFields?.client}
           text={text}
+          source={source}
           onChange={setText}
           onSave={handleSave}
           onCopy={handleCopy}

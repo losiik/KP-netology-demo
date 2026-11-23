@@ -28,6 +28,17 @@ export function formatRub(amount) {
   return fraction === "00" ? `${grouped} ₽` : `${grouped},${fraction} ₽`;
 }
 
+// «Сегодня, 12:40», «Вчера, 16:15», иначе «16.11.2026, 12:40».
+export function formatRelativeDate(iso) {
+  const date = new Date(iso);
+  const time = date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86_400_000);
+  if (days === 0) return `Сегодня, ${time}`;
+  if (days === 1) return `Вчера, ${time}`;
+  return formatDate(iso);
+}
+
 export function formatDate(iso) {
   return new Date(iso).toLocaleString("ru-RU", {
     day: "2-digit",

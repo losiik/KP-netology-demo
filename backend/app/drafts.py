@@ -2,6 +2,9 @@
 
 Принимает поля формы → проверяет их → считает сумму → передаёт в шаблон.
 Черновик НЕ сохраняется: документ попадает в историю только по кнопке «Сохранить».
+
+Этап 1 (сейчас): текст собирает шаблон, source = "template".
+Этап 2 (на лекции, через Cursor): текст пишет модель, source = "ai".
 """
 
 from fastapi import APIRouter, Body, Depends
@@ -23,4 +26,4 @@ def create_draft(payload: dict = Body(...), user: dict = Depends(current_user)):
     total = calculate_total(fields.services)
     text = build_template_draft(fields, total)
 
-    return {"text": text, "total": str(total), "fields": fields.to_dict()}
+    return {"text": text, "total": str(total), "fields": fields.to_dict(), "source": "template"}

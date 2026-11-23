@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS documents (
     extra_terms   TEXT NOT NULL DEFAULT '',
     total         TEXT NOT NULL,
     text          TEXT NOT NULL,
+    source        TEXT NOT NULL DEFAULT 'template',  -- кто подготовил черновик: template | ai
     created_at    TEXT NOT NULL,
     updated_at    TEXT NOT NULL
 );
@@ -92,6 +93,10 @@ def verify_password(password: str, stored: str) -> bool:
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
+        # База от предыдущей версии без колонки source — дополняем её на месте.
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(documents)")}
+        if "source" not in columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN source TEXT NOT NULL DEFAULT 'template'")
         for user in DEMO_USERS:
             exists = conn.execute(
                 "SELECT 1 FROM users WHERE login = ?", (user["login"],)
